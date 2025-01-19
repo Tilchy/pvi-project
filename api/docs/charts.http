@@ -1,0 +1,31 @@
+@TOKEN=
+
+### Create a new chart
+POST http://127.0.0.1:8000/charts/
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+{
+  "name": "chart-a",
+  "description": "This is Chart A, it represents...",
+  "instruction": "You are a helpful assistant...",
+  "url": "https://raw.githubusercontent.com/Tilchy/demo-graphs/refs/heads/main/assets/chart-image.png"
+}
+
+
+### Get chart
+GET http://127.0.0.1:8000/charts/chart-a
+Authorization: Bearer {{TOKEN}}
+
+### Update chart
+PUT http://127.0.0.1:8000/charts/chart-a
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+{
+  "description": "This is new description for chart A..."
+}
+
+### Delete chart
+DELETE http://127.0.0.1:8000/charts/chart-a
+Authorization: Bearer {{TOKEN}}

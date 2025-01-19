@@ -1,0 +1,28 @@
+services:
+    app:
+        image: tilchy/evaluation-app:1.0.2
+        depends_on:
+            - api
+        ports:
+            - 8080:8080
+        env_file: "app.env"
+        networks:
+            - evaluation-network
+
+    api:
+        image: tilchy/evaluation-api:latest
+        ports:
+            - 14900:80
+        env_file: "api.env"
+        networks:
+            - evaluation-network
+        volumes:
+            - db-data:/var/lib/db-data
+
+networks:
+    evaluation-network:
+        driver: bridge
+
+volumes:
+    db-data:
+        driver: local

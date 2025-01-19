@@ -1,0 +1,14 @@
+:root {
+	--nicegui-default-padding: 0rem;
+	--nicegui-default-gap: 0;
+	--primary-color: #0077b3;
+	--disabled-color: #808080;
+	--white-color: #ffffff;
+}
+
+body,
+html {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}

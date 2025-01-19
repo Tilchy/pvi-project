@@ -1,0 +1,17 @@
+@KEY=
+
+### Reset users using curl
+curl -X POST http://127.0.0.1:14900/reset/users \
+     -H "Authorization: {{KEY}}" \
+     -F "file=@F:\\Magisterij\\pvi\\research\\docs\\users.csv"
+
+
+### Reset charts
+curl -X POST http://127.0.0.1:14900/reset/charts \
+     -H "Authorization: {{KEY}}" \
+     -F "file=@F:\\Magisterij\\pvi\\research\\docs\\charts.csv"
+
+
+### Reset evaluations
+curl -X POST http://127.0.0.1:14900/reset/evaluations \
+     -H "Authorization: {{KEY}}"

@@ -1,0 +1,13 @@
+@TOKEN=
+
+GET http://127.0.0.1:8000/evaluations/tilen/chart-a
+Authorization: Bearer {{TOKEN}}
+
+### Ask question
+POST http://127.0.0.1:8000/evaluations/user/chart-b
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+    "question":"can image be interpreted subjectively?"
+}

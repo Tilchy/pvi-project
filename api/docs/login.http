@@ -1,0 +1,30 @@
+@PORT=8000
+
+### Login and retrieve admin access token
+POST http://127.0.0.1:{{PORT}}/users/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=
+
+### Login and retrieve user access token
+POST http://127.0.0.1:{{PORT}}/users/login
+Content-Type: application/x-www-form-urlencoded
+
+username=tilen&password=
+
+
+### Verify Access Token
+POST http://127.0.0.1:{{PORT}}/users/verify
+Content-Type: application/json
+
+{
+  "token": ""
+}
+
+### Revoke Access Token
+POST http://127.0.0.1:{{PORT}}/users/revoke
+Content-Type: application/json
+
+{
+  "token": ""
+}

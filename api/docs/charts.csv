@@ -1,0 +1,6 @@
+name,description,instruction,url
+chart-a,Boxplot chart of some bill data.,You are a helpful assistant...,https://github.com/Tilchy/demo-graphs/blob/main/assets/chart_a.png?raw=true
+chart-b,Heatmap chart of bill and tip data.,You are a helpful assistant...,https://github.com/Tilchy/demo-graphs/blob/main/assets/chart_b.png?raw=true
+chart-c,Bubble chart of GDP and life expectancy.,You are a helpful assistant...,https://github.com/Tilchy/demo-graphs/blob/main/assets/chart_c.png?raw=true
+chart-d,OHLC chart of price movement.,You are a helpful assistant...,https://github.com/Tilchy/demo-graphs/blob/main/assets/chart_d.png?raw=true
+chart-e,Scatter chart of sepal and petal length.,You are a helpful assistant...,https://github.com/Tilchy/demo-graphs/blob/main/assets/chart_e.png?raw=true

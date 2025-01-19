@@ -1,0 +1,42 @@
+@TOKEN=
+
+### Get user
+GET http://127.0.0.1:8000/users/user
+Authorization: Bearer {{TOKEN}}
+
+### Create a new user
+POST http://127.0.0.1:8000/users/
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+{
+  "username": "user",
+  "full_name": "user",
+  "disabled": false,
+  "type": "user",
+  "password": "user"
+}
+
+### Update user
+PUT http://127.0.0.1:8000/users/user
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+{
+  "full_name": "Real User"
+}
+
+### Create another user
+POST http://127.0.0.1:8000/users/
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+{
+  "username": "another",
+  "full_name": "John Doe",
+  "disabled": false,
+  "type": "normal",
+  "password": "pass"
+}
+
+### Delete user
+DELETE http://127.0.0.1:8000/users/another
+Authorization: Bearer {{TOKEN}}
