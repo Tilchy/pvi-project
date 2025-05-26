@@ -1,17 +1,20 @@
+
+
+### Find your key in the .env file
 @KEY=
 
+### Copy these commands to bash terminal because it seems to not work in VS Code
+
 ### Reset users using curl
-curl -X POST http://127.0.0.1:14900/reset/users \
-     -H "Authorization: {{KEY}}" \
-     -F "file=@F:\\Magisterij\\pvi\\research\\docs\\users.csv"
+curl -X POST http://127.0.0.1:8000/reset/users -H "Authorization: {{KEY}}" -F "file=@F:\\Magisterij\\pvi\\pvi\\api\\docs\\users.csv"
 
 
 ### Reset charts
-curl -X POST http://127.0.0.1:14900/reset/charts \
+curl -X POST http://127.0.0.1:8000/reset/charts \
      -H "Authorization: {{KEY}}" \
      -F "file=@F:\\Magisterij\\pvi\\research\\docs\\charts.csv"
 
 
 ### Reset evaluations
-curl -X POST http://127.0.0.1:14900/reset/evaluations \
+curl -X POST http://127.0.0.1:8000/reset/evaluations \
      -H "Authorization: {{KEY}}"

@@ -21,7 +21,7 @@ def login_page():
     render_login_page()
 
 @ui.page('/evaluation')
-def evaluation_page():
+async def evaluation_page():
     """
     Renders the evaluation page after checking user authentication.
 
@@ -31,13 +31,13 @@ def evaluation_page():
     """
     spinner = ui.spinner(size=30).classes('absolute-center')  # Show a spinner while checking authentication
     
-    def check_authentication():
+    async def check_authentication():
         user_data = require_authentication()
         if user_data:
             spinner.delete()
-            render_evaluation_page()
+            await render_evaluation_page()
 
-    check_authentication()
+    await check_authentication()
 
 @ui.page('/admin')
 def admin_page():

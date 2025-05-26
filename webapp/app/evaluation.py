@@ -1,7 +1,7 @@
 import json
 import requests
 
-from nicegui import app, ui
+from nicegui import app, ui, run
 from utils import get_css_file_path, logout, SERVER_URI
 
 def set_chart(chart_id):
@@ -37,12 +37,22 @@ def show_image():
     ui.image(image_url).props(':ratio="16/9"').classes('w-full h-full')
 
 @ui.refreshable
+def show_textarea_or_spinner():
+    # Show spinner while loading
+    if app.storage.user.get('is_loading', False):
+        with ui.row().classes('w-full justify-center items-center mt-8'):
+            ui.spinner(size='xl') 
+        ui.button(color='var(--primary-color)', text='Submit', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-64').props('disable')
+    else:
+        question = ui.textarea(label='Question', placeholder='Start typing your question?').props('outlined rows="6"').classes('w-full pt-8 mx-64 text-lg') 
+        ui.button(color='var(--primary-color)', text='Submit', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-64')
+
+@ui.refreshable
 def show_chart_buttons():
-    ui.button('1', color=get_button_color('chart-a'), on_click=lambda: set_chart('chart-a')).classes(get_button_classes('chart-a')).tooltip('Chart 1')
-    ui.button('2', color=get_button_color('chart-b'), on_click=lambda: set_chart('chart-b')).classes(get_button_classes('chart-b')).tooltip('Chart 2')
-    ui.button('3', color=get_button_color('chart-c'), on_click=lambda: set_chart('chart-c')).classes(get_button_classes('chart-c')).tooltip('Chart 3')
-    ui.button('4', color=get_button_color('chart-d'), on_click=lambda: set_chart('chart-d')).classes(get_button_classes('chart-d')).tooltip('Chart 4')
-    ui.button('5', color=get_button_color('chart-e'), on_click=lambda: set_chart('chart-e')).classes(get_button_classes('chart-e')).tooltip('Chart 5')
+    charts = get_charts() 
+    
+    for idx, chart in enumerate(charts):
+        ui.button(f'{idx + 1}', color=get_button_color(chart), on_click=lambda c=chart: set_chart(c)).classes(get_button_classes(chart)).tooltip(f'Chart {idx + 1}')
 
 @ui.refreshable
 def get_evaluation_text(markdown_ui: ui.markdown):
@@ -84,27 +94,34 @@ def get_evaluation_text(markdown_ui: ui.markdown):
     except KeyError:
         markdown_ui.set_content('**Ask a question about the chart image displayed on the left.**')
 
-def submit_question(question):
+async def submit_question(question: str):
     """
     Submit a question to the server and update the chat history.
 
     Args:
         question (str): The question to submit to the server.
-
-    Returns:
-        None
     """
-    spinner = ui.spinner(size="xl").classes('absolute-center')
-    if question == '':
+    if not question.strip():
         ui.notify('Please enter a question.')
-        spinner.delete()
         return
 
     url = f"{SERVER_URI}/evaluations/{app.storage.user['username']}/{app.storage.user['chart_id']}"
     headers = {"Authorization": f"Bearer {app.storage.user['access_token']}"}
-    response = requests.post(url, headers=headers, json={'question': question})
+    
+    # Run the POST request in a background thread
+    await run.io_bound(requests.post, url, headers=headers, json={'question': question})
 
-    spinner.delete()
+    get_evaluation_text.refresh()
+    
+async def handle_question_submit(question: str):
+    app.storage.user['is_loading'] = True
+    show_textarea_or_spinner.refresh()
+    get_evaluation_text.refresh()
+
+    await submit_question(question)
+
+    app.storage.user['is_loading'] = False
+    show_textarea_or_spinner.refresh()
 
 def get_image_url():
     """Get the image URL and description for the current chart ID.
@@ -122,8 +139,29 @@ def get_image_url():
     response = requests.get(url, headers=headers).json()
     return response['url'], response['description']
 
-def render_evaluation_page():
+def get_charts():
+    """Get the list of charts from the server.
+
+    Query the server to get the list of available charts.
+
+    Args:
+        None
+
+    Returns:
+        list: A list of chart names.
+    """
+    url = f"{SERVER_URI}/charts/"
+    headers = {"Authorization": f"Bearer {app.storage.user['access_token']}"}
+    response = requests.get(url, headers=headers).json()
+
+    return [chart['name'] for chart in response]
+
+
+async def render_evaluation_page():
     ui.add_css(get_css_file_path())
+
+    if 'is_loading' not in app.storage.user:
+        app.storage.user['is_loading'] = False
     
     with ui.dialog() as dialog, ui.card(align_items='end').classes('w-full h-full').style('max-width: none'):
         ui.button('X', on_click=dialog.close)
@@ -152,11 +190,9 @@ def render_evaluation_page():
                 with ui.row(align_items='center').classes('h-full w-full justify-center px-32 pt-8 text-lg').style('background-color: #e0e7eb'):
                     with ui.scroll_area().classes('w-full h-full'):
                         markdown_ui = ui.markdown()
-                        ui.timer(1.0, lambda: get_evaluation_text(markdown_ui))
-                        
+                        get_evaluation_text(markdown_ui)
                 with ui.row(align_items='start').classes('h-full w-full').style('background-color: #e0e7eb'):
-                    question = ui.textarea(label='Question', placeholder='Start typing your question?').props('outlined rows="6"').classes('w-full pt-8 mx-64 text-lg')
-                    ui.button(color='var(--primary-color)', text='Submit', on_click=lambda: (submit_question(question.value), question.set_value(''))).classes('w-full text-white mt-4 mx-64')
-
+                    show_textarea_or_spinner()
+                    
     with ui.footer(elevated=True).style('background-color: #29363d;').classes('items-center h-10'):
         ui.label('Tilen Tratnjek - Univerza v Mariboru 2025').classes('pl-4 text-sm text-gray-200')
