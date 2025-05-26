@@ -112,6 +112,34 @@ def get_chart(filename: str, session: SessionDep, authorization: str = Header())
 
     return db_chart
 
+@router.get("/", response_model=list[ChartBase])
+def list_charts(session: SessionDep, authorization: str = Header()):
+    """
+    List all charts.
+
+    This endpoint retrieves all charts from the database.
+
+    Args:
+    session: The database session.
+    authorization: The Bearer token for user verification.
+
+    Returns:
+    A list of all charts.
+
+    Raises:
+    HTTPException: 401 if the token is invalid.
+    """
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token format")
+    token = authorization.split(" ")[1]
+
+    verify_user(token, session)
+
+    statement = select(Chart)
+    charts = session.exec(statement).all()
+
+    return charts
+
 @router.put("/{filename}", response_model=ChartBase)
 def update_chart(filename: str, chart: ChartUpdate, session: SessionDep, authorization: str = Header()):
     """

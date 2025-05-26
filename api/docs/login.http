@@ -1,5 +1,5 @@
 @PORT=8000
-
+### Find the password for the admin user in .env file (KEY)
 ### Login and retrieve admin access token
 POST http://127.0.0.1:{{PORT}}/users/login
 Content-Type: application/x-www-form-urlencoded
@@ -10,7 +10,7 @@ username=admin&password=
 POST http://127.0.0.1:{{PORT}}/users/login
 Content-Type: application/x-www-form-urlencoded
 
-username=tilen&password=
+username=tilen&password=demo
 
 
 ### Verify Access Token

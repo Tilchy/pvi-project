@@ -1,2 +1,3 @@
 username,full_name,disabled,type,password
 tilen,Tilen Tratnjek,false,user,demo
+test,Test User,false,user,1234

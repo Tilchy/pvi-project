@@ -17,6 +17,10 @@ Authorization: Bearer {{TOKEN}}
 GET http://127.0.0.1:8000/charts/chart-a
 Authorization: Bearer {{TOKEN}}
 
+### List charts
+GET http://127.0.0.1:8000/charts
+Authorization: Bearer {{TOKEN}}
+
 ### Update chart
 PUT http://127.0.0.1:8000/charts/chart-a
 Content-Type: application/json
