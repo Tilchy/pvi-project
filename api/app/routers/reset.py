@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, HTTPException, Header, Request, UploadFile
 from requests import Session
 from sqlmodel import delete
-from passlib.hash import argon2
 
 from app.dependencies import get_session
 from app.routers.users import User
@@ -23,7 +22,6 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 load_dotenv()
 KEY=os.getenv("KEY")
-
 
 @router.post("/users")
 async def reset_users(session: SessionDep, authorization: Annotated[str, Header()],file: UploadFile = File(...)):
@@ -56,10 +54,9 @@ async def reset_users(session: SessionDep, authorization: Annotated[str, Header(
 
     admin_user = User(
         username="admin",
-        full_name="Administrator",
+        email="admin@example.com",
         disabled=False,
-        type="admin",
-        password=argon2.hash(KEY)
+        type="admin"
     )
     session.add(admin_user)
 
@@ -68,10 +65,9 @@ async def reset_users(session: SessionDep, authorization: Annotated[str, Header(
     for row in csv_reader:
         user = User(
             username=row["username"],
-            full_name=row.get("full_name", "Unknown"),
+            email=row.get("email", "Unknown"),
             disabled=row.get("disabled", "False").lower() == "true",
-            type=row.get("type", "user"),
-            password=argon2.hash(row["password"])
+            type=row.get("type", "user")
         )
         session.add(user)
 

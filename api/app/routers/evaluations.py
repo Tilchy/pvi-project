@@ -22,7 +22,7 @@ class EvaluationBase(SQLModel):
 
 class Evaluation(EvaluationBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    user: str = Field(foreign_key="user.username")
+    email: str = Field(foreign_key="user.email")
     chart: str = Field(foreign_key="chart.name")
     timestamp: datetime
     chat_history: bytes
@@ -40,13 +40,13 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 # Check if evaluation exists for current user and chart, evaluations need to be sorted by timestamp (latest first)
 # If evaluation exists, return it, else create a new one
-@router.get("/{user}/{chart}")
-def get_evaluation(user: str, chart: str, session: SessionDep, authorization: str = Header()):
+@router.get("/{email}/{chart}")
+def get_evaluation(email: str, chart: str, session: SessionDep, authorization: str = Header()):
     """
     Get an evaluation for a user and chart.
 
     Args:
-    user (str): The username of the user to get the evaluation for.
+    user (str): The email of the user to get the evaluation for.
     chart (str): The name of the chart to get the evaluation for.
     session (SessionDep): The database session.
     authorization (str = Header()): The Bearer token to verify the user.
@@ -63,17 +63,17 @@ def get_evaluation(user: str, chart: str, session: SessionDep, authorization: st
         raise HTTPException(status_code=401, detail="Invalid token format")
     token = authorization.split(" ")[1]
 
-    if not user or not chart:
+    if not email or not chart:
         raise HTTPException(status_code=400, detail="User and chart must be provided")
     
     verify_user(token, session)
 
     payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-    if payload["username"] != user:
-        raise HTTPException(status_code=401, detail=f"'{payload['username']}' is not authorized to access evaluation for '{user}'")
+    if payload["email"] != email:
+        raise HTTPException(status_code=401, detail=f"'{payload['email']}' is not authorized to access evaluation for '{email}'")
 
 
-    statement = select(Evaluation).where(Evaluation.user == user).where(Evaluation.chart == chart).order_by(Evaluation.timestamp)
+    statement = select(Evaluation).where(Evaluation.email == email).where(Evaluation.chart == chart).order_by(Evaluation.timestamp)
     evaluation = session.exec(statement).first()
 
     if not evaluation:
@@ -81,8 +81,8 @@ def get_evaluation(user: str, chart: str, session: SessionDep, authorization: st
 
     return evaluation
 
-@router.post("/{user}/{chart}")
-async def ask_question(user: str, chart: str, question: Question, session: SessionDep, authorization: str = Header()):
+@router.post("/{email}/{chart}")
+async def ask_question(email: str, chart: str, question: Question, session: SessionDep, authorization: str = Header()):
     """
     Handle a user's question for a specific chart evaluation.
 
@@ -92,7 +92,7 @@ async def ask_question(user: str, chart: str, question: Question, session: Sessi
     does, it appends the new question to the existing chat history.
 
     Args:
-    user (str): The username of the user asking the question.
+    email (str): The email of the user asking the question.
     chart (str): The name of the chart related to the question.
     question (Question): The question being asked.
     session (SessionDep): The database session.
@@ -112,19 +112,19 @@ async def ask_question(user: str, chart: str, question: Question, session: Sessi
         raise HTTPException(status_code=401, detail="Invalid token format")
     token = authorization.split(" ")[1]
 
-    if not user or not chart:
-        raise HTTPException(status_code=400, detail="User and chart must be provided")
-    
+    if not email or not chart:
+        raise HTTPException(status_code=400, detail="Email and chart must be provided")
+
     if not question.question:
         raise HTTPException(status_code=400, detail="Question must be provided")
 
     verify_user(token, session)
 
     payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-    if payload["username"] != user:
-        raise HTTPException(status_code=401, detail=f"'{payload['username']}' is not authorized to access evaluation for '{user}'")
+    if payload["email"] != email:
+        raise HTTPException(status_code=401, detail=f"'{payload['email']}' is not authorized to access evaluation for '{email}'")
 
-    statement = select(Evaluation).where(Evaluation.user == user).where(Evaluation.chart == chart).order_by(Evaluation.timestamp)
+    statement = select(Evaluation).where(Evaluation.email == email).where(Evaluation.chart == chart).order_by(Evaluation.timestamp)
     db_evaluation = session.exec(statement).first()
 
     if not db_evaluation:
@@ -159,7 +159,7 @@ async def ask_question(user: str, chart: str, question: Question, session: Sessi
         chat = json.dumps(chat).encode('utf-8')
 
         db_evaluation = Evaluation(
-            user=user,
+            email=email,
             chart=chart,
             timestamp=datetime.now(timezone.utc),
             chat_history=chat

@@ -1,12 +1,13 @@
 import jwt
 import os
+import random
+import string
 
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Form, Header
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, SQLModel, Session, select
-from passlib.hash import argon2
 from dotenv import load_dotenv
 
 from app.dependencies import get_session
@@ -15,27 +16,16 @@ load_dotenv()
 JWT_KEY = os.getenv("JWT_KEY")
 
 class UserBase(SQLModel):
+    email: EmailStr
     username: str
-    full_name: str
     disabled: bool = False
     type: str
 
 class User(UserBase, table=True):
-    username: str = Field(primary_key=True)
-    full_name: str
+    email: EmailStr = Field(primary_key=True) 
+    username: str
     disabled: bool
     type: str
-    password: str
-
-class UserCreate(UserBase):
-    password: str
-
-class UserUpdate(UserBase):
-    username: Optional[str] = None
-    full_name: Optional[str] = None
-    disabled: Optional[bool] = None
-    type: Optional[str] = None
-    password: Optional[str] = None
 
 class TokenBase(SQLModel):
     token: str
@@ -56,169 +46,15 @@ router = APIRouter(
 
 SessionDep = Annotated[Session, Depends(get_session)] 
 
-def hash_password(password: str) -> str:
-    """
-    Hash a password using Argon2.
-
-    Args:
-    password: The plain text password to be hashed.
-
-    Returns:
-    The hashed password as a string.
-    """
-
-    return argon2.hash(password)
-
-@router.post("/", response_model=UserBase)
-async def create_user(user: UserCreate, session: SessionDep, authorization: str = Header()):
-    """Create a new user.
-
-    This endpoint creates a new user in the database after verifying
-    the provided Bearer token.
-
-    Args:
-    user: The user to be created.
-    session: The database session.
-
-    Returns:
-    The created user.
-
-    Raises:
-    HTTPException: If a user with the same username already exists.
-    """
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-    token = authorization.split(" ")[1]
-
-    verify_if_admin(token, session)
-
-    statement = select(User).where(User.username == user.username)
-    if session.exec(statement).first():
-        raise HTTPException(status_code=400, detail="User with this username already exists")
-
-    hashed_password = hash_password(user.password)
-    db_user = User(username=user.username, full_name=user.full_name, disabled=user.disabled, type=user.type, password=hashed_password)
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    return db_user
-
-@router.get("/{username}", response_model=UserBase)
-async def get_user(username: str, session: SessionDep, authorization: str = Header()):
-    """
-    Get a user by username.
-
-    Args:
-        username (str): username of the user to retrieve
-        session (SessionDep): database session
-
-    Returns:
-        User: The requested user
-
-    Raises:
-        HTTPException: 404 if the user is not found
-    """
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-    token = authorization.split(" ")[1]
-
-    # verify if user is requesting their own data
-    payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-    if payload["username"] != username:
-        verify_if_admin(token, session)
-    else:
-        verify_user(token, session)
-
-    db_user = session.get(User, username)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return db_user
-
-@router.put("/{username}", response_model=UserBase)
-async def update_user(username: str, user: UserUpdate, session:SessionDep, authorization: str = Header()):
-    """
-    Update a user.
-
-    This endpoint updates a user in the database.
-
-    Args:
-    username: The username of the user to update.
-    user: The user data to update.
-    session: The database session.
-
-    Returns:
-    The updated user.
-
-    Raises:
-    HTTPException: 404 if the user is not found.
-    """
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-    token = authorization.split(" ")[1]
-
-    verify_if_admin(token, session)
-
-    db_user = session.get(User, username)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user_data = user.model_dump(exclude_unset=True)
-    for key, value in user_data.items():
-        setattr(db_user, key, value)
-
-    if "password" in user_data:
-        db_user.password = hash_password(user_data["password"])
-
-    session.commit()
-    session.refresh(db_user)
-    return db_user
-
-@router.delete("/{username}", status_code=204)
-async def delete_user(username: str, session: SessionDep, authorization: str = Header()):
-    """
-    Delete a user.
-
-    This endpoint deletes a user from the database.
-
-    Args:
-    username: The username of the user to delete.
-    session: The database session.
-
-    Returns:
-    None
-
-    Raises:
-    HTTPException: 404 if the user is not found.
-    """
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-    token = authorization.split(" ")[1]
-
-    verify_if_admin(token, session)
-
-    db_user = session.get(User, username)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    session.delete(db_user)
-    session.commit()
-
-    return None
-
 @router.post("/login")
-async def login_user(username: Annotated[str, Form()], password: Annotated[str, Form()], session: SessionDep):
+async def login_user(email: Annotated[EmailStr, Form()], session: SessionDep):
     """
     Log in a user and issue an access token.
 
-    This endpoint verifies the user's credentials and issues an access token
-    if the credentials are correct and the user is active.
+    This endpoint issues an access token and saves it in the database if not already present.
 
     Args:
-    username: The username of the user trying to log in.
-    password: The password of the user trying to log in.
+    email: The email of the user trying to log in.
     session: The database session.
 
     Returns:
@@ -229,35 +65,19 @@ async def login_user(username: Annotated[str, Form()], password: Annotated[str, 
     HTTPException: 401 if the password is incorrect or the user is disabled.
     """
 
-    db_user = session.get(User, username)
+    db_user = session.get(User, email)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if not argon2.verify(password, db_user.password):
-        raise HTTPException(status_code=401, detail="Incorrect password")
+        db_user = User(email=email, username=''.join(random.choices(string.ascii_letters + string.digits, k=6)), disabled=False, type='user')
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
 
     if db_user.disabled:
         raise HTTPException(status_code=401, detail="User is disabled")
 
-    access_token = issue_access_token(username)
+    access_token = issue_access_token(email)
 
     return {"access_token": access_token}
-
-def issue_access_token(username: str):
-    """
-    Issue an access token for a user.
-
-    This function creates an access token that contains the username and an
-    expiration time (7 days from now). The token is signed with the secret key.
-
-    Args:
-        username (str): The username to issue the token for
-
-    Returns:
-        str: The issued access token
-    """
-    payload = {"username": username, "exp": datetime.now(tz=timezone.utc) + timedelta(days=7)}
-    return jwt.encode(payload, JWT_KEY, algorithm="HS256")
 
 @router.post("/verify", response_model=UserBase)
 async def verify_access_token(request: TokenRequest, session: SessionDep):
@@ -280,9 +100,9 @@ async def verify_access_token(request: TokenRequest, session: SessionDep):
     token = request.token
     try:
         payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-        username = payload["username"]
-        
-        db_user = session.get(User, username)
+        email = payload["email"]
+
+        db_user = session.get(User, email)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
         if db_user.disabled:
@@ -298,7 +118,24 @@ async def verify_access_token(request: TokenRequest, session: SessionDep):
         raise HTTPException(status_code=401, detail="Access token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid access token")
-    
+
+def issue_access_token(email: str):
+    """
+    Issue an access token for a user.
+
+    This function creates an access token that contains the email and an
+    expiration time (7 days from now). The token is signed with the secret key.
+
+    Args:
+        email (str): The email to issue the token for
+
+    Returns:
+        str: The issued access token
+    """
+    payload = {"email": email, "exp": datetime.now(tz=timezone.utc) + timedelta(days=7)}
+    return jwt.encode(payload, JWT_KEY, algorithm="HS256")
+
+
 @router.post("/revoke")
 def revoke_access_token(request: TokenRequest, session: SessionDep):
     """
@@ -321,9 +158,9 @@ def revoke_access_token(request: TokenRequest, session: SessionDep):
     token = request.token    
     try:
         payload: dict = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-        username = payload["username"]
+        email = payload["email"]
 
-        db_user = session.get(User, username)
+        db_user = session.get(User, email)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -349,7 +186,6 @@ def revoke_access_token(request: TokenRequest, session: SessionDep):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid access token")
     
-
 def verify_if_admin(token: str, session: SessionDep):
     """
     Verify if the user associated with the access token is an admin.
@@ -369,9 +205,9 @@ def verify_if_admin(token: str, session: SessionDep):
     """
     try:
         payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-        username = payload["username"]
+        email = payload["email"]
         # Verify that the user exists and is active
-        db_user = session.get(User, username)
+        db_user = session.get(User, email)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
         if db_user.disabled:
@@ -390,7 +226,6 @@ def verify_if_admin(token: str, session: SessionDep):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid access token")
     
-
 def verify_user(token: str, session: SessionDep):
     """
     Verify if the user associated with the access token is a user.
@@ -410,9 +245,9 @@ def verify_user(token: str, session: SessionDep):
     """
     try:
         payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-        username = payload["username"]
+        email = payload["email"]
 
-        db_user = session.get(User, username)
+        db_user = session.get(User, email)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
         if db_user.disabled:
