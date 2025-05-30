@@ -26,15 +26,15 @@ def get_button_color(chart_id):
 @ui.refreshable
 def show_chart():
     image_url, image_description = get_image_url()
-    with ui.card().classes('w-full h-full'):
-        ui.image(image_url).props(':ratio="16/9"').classes('w-full h-full')
+    with ui.card().classes('w-full h-fit max-h-[40rem]'):
+        ui.image(image_url).props('fit="contain"')
         with ui.card_section():
             ui.label(image_description)
 
 @ui.refreshable
 def show_image():
     image_url, image_description = get_image_url()
-    ui.image(image_url).props(':ratio="16/9"').classes('w-full h-full')
+    ui.image(image_url).classes('w-full h-full').props('fit="scale-down"')
 
 @ui.refreshable
 def show_textarea_or_spinner():
@@ -42,17 +42,17 @@ def show_textarea_or_spinner():
     if app.storage.user.get('is_loading', False):
         with ui.row().classes('w-full justify-center items-center mt-8'):
             ui.spinner(size='xl') 
-        ui.button(color='var(--primary-color)', text='Submit', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-64').props('disable')
+        ui.button(color='var(--primary-color)', text='Pošlji vprašanje', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-8 lg:mx-16 xl:mx-32 mb-16').props('disable')
     else:
-        question = ui.textarea(label='Question', placeholder='Start typing your question?').props('outlined rows="6"').classes('w-full pt-8 mx-64 text-lg') 
-        ui.button(color='var(--primary-color)', text='Submit', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-64')
+        question = ui.textarea(label='Vprašanje', placeholder='Zapišite vprašanje...').props('outlined rows="6"').classes('w-full pt-8 mx-8 lg:mx-16 xl:mx-32 text-lg')
+        ui.button(color='var(--primary-color)', text='Pošlji vprašanje', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-8 mb-16 lg:mx-16 xl:mx-32')
 
 @ui.refreshable
 def show_chart_buttons():
     charts = get_charts() 
     
     for idx, chart in enumerate(charts):
-        ui.button(f'{idx + 1}', color=get_button_color(chart), on_click=lambda c=chart: set_chart(c)).classes(get_button_classes(chart)).tooltip(f'Chart {idx + 1}')
+        ui.button(f'{idx + 1}', color=get_button_color(chart), on_click=lambda c=chart: set_chart(c)).classes(get_button_classes(chart)).tooltip(f'Graf {idx + 1}')
 
 @ui.refreshable
 def get_evaluation_text(markdown_ui: ui.markdown):
@@ -64,7 +64,7 @@ def get_evaluation_text(markdown_ui: ui.markdown):
     in a markdown format. If the response is invalid, it will
     display a message asking the user to ask a question.
     """
-    url = f"{SERVER_URI}/evaluations/{app.storage.user['username']}/{app.storage.user['chart_id']}"
+    url = f"{SERVER_URI}/evaluations/{app.storage.user['email']}/{app.storage.user['chart_id']}"
     headers = {"Authorization": f"Bearer {app.storage.user['access_token']}"}
     response = requests.get(url, headers=headers)
 
@@ -92,7 +92,7 @@ def get_evaluation_text(markdown_ui: ui.markdown):
         markdown_ui.clear()
         markdown_ui.set_content(markdown_content.strip())
     except KeyError:
-        markdown_ui.set_content('**Ask a question about the chart image displayed on the left.**')
+        markdown_ui.set_content('**Tukaj bodo prikazani odgovori pomočnika, potem ko jih postavite.**')
 
 async def submit_question(question: str):
     """
@@ -105,7 +105,7 @@ async def submit_question(question: str):
         ui.notify('Please enter a question.')
         return
 
-    url = f"{SERVER_URI}/evaluations/{app.storage.user['username']}/{app.storage.user['chart_id']}"
+    url = f"{SERVER_URI}/evaluations/{app.storage.user['email']}/{app.storage.user['chart_id']}"
     headers = {"Authorization": f"Bearer {app.storage.user['access_token']}"}
     
     # Run the POST request in a background thread
@@ -169,30 +169,27 @@ async def render_evaluation_page():
 
     with ui.header(elevated=True).style('background-color: var(--primary-color);').classes('flex items-center justify-between h-20 px-4'):
         with ui.row().classes('items-center'):
-            ui.label('Chart Evaluation').classes('text-2xl text-white')
+            ui.label('Pomočnik').classes('text-2xl text-white')
         
         with ui.row().classes('gap-4 items-center'):
-            ui.button(text='', color='var(--primary-color)', on_click=lambda: logout(), icon='contact_support').props("flat round").tooltip('Documentation')
             ui.button(text='', color='var(--primary-color)', on_click=lambda: logout(), icon='logout').props("flat round").tooltip('Logout')
     
-    with ui.element('div').classes('w-full h-[calc(100vh-7.5rem)] flex flex-wrap'):
-        with ui.column().classes('w-full md:w-2/5 h-full'):
-            with ui.element('div').classes('grid grid-rows-[6fr_4fr] h-full w-full'):      
-                with ui.row(align_items='center').classes('h-full w-full justify-center').style('background-color: #e0e7eb'):
-                    with ui.element('div').on('click', dialog.open).classes('w-full h-full cursor-pointer p-4').tooltip('Enlarge image'):
-                            show_chart()
+    with ui.element('div').classes('w-full xl:h-[calc(100vh-7.5rem)] flex flex-wrap'):
+        with ui.column().classes('w-full h-full xl:w-2/5'):   
+            with ui.row(align_items='center').classes('h-fit w-full justify-center').style('background-color: #e0e7eb'):
+                with ui.element('div').on('click', dialog.open).classes('w-full h-full cursor-pointer p-4').tooltip('Kliknite za povečavo slike'):
+                        show_chart()
 
-                with ui.row(align_items='start').classes('gap-4 w-full h-full justify-center pt-8').style('background-color: #e0e7eb'):
-                    show_chart_buttons()
+            with ui.row(align_items='start').classes('gap-4 w-full h-fit justify-center pt-8 px-4').style('background-color: #e0e7eb'):
+                show_chart_buttons()
 
-        with ui.column().classes('w-full md:w-3/5 h-full'):
-            with ui.element('div').classes('grid grid-rows-[5fr_3fr] h-full w-full'):
-                with ui.row(align_items='center').classes('h-full w-full justify-center px-32 pt-8 text-lg').style('background-color: #e0e7eb'):
-                    with ui.scroll_area().classes('w-full h-full'):
-                        markdown_ui = ui.markdown()
-                        get_evaluation_text(markdown_ui)
-                with ui.row(align_items='start').classes('h-full w-full').style('background-color: #e0e7eb'):
-                    show_textarea_or_spinner()
+        with ui.column().classes('w-full h-fit xl:w-3/5'):
+            with ui.row(align_items='center').classes('h-full w-full justify-center px-8 lg:px-32 pt-8 text-lg').style('background-color: #e0e7eb'):
+                with ui.scroll_area().classes('min-h-[20rem] xl:min-h-[30rem]'):
+                    markdown_ui = ui.markdown()
+                    get_evaluation_text(markdown_ui)
+            with ui.row(align_items='start').classes('h-full w-full min-h-80').style('background-color: #e0e7eb'):
+                show_textarea_or_spinner()
                     
-    with ui.footer(elevated=True).style('background-color: #29363d;').classes('items-center h-10'):
+    with ui.footer(elevated=False).style('background-color: #29363d;').classes('items-center h-10'):
         ui.label('Tilen Tratnjek - Univerza v Mariboru 2025').classes('pl-4 text-sm text-gray-200')
