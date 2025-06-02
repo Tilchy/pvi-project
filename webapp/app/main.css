@@ -15,24 +15,20 @@ html {
 }
 
 .highlight-last {
-	background-color: #fff8d6;
-	border-left: 4px solid #ffb300;
-	padding: 10px;
-	animation: subtle-blink 1.5s ease-in-out 2;
+	border-radius: 0.5rem;
+	background-color: #e0e7eb;
+	animation: subtle-blink 1s ease-in-out 2;
 	transition: background-color 0.3s;
 }
 
 @keyframes subtle-blink {
 	0% {
-		background-color: #fff8d6;
-		box-shadow: 0 0 0px rgba(255, 179, 0, 0);
+		background-color: #e0e7eb;
 	}
 	50% {
-		background-color: #ffe58f;
-		box-shadow: 0 0 8px rgba(255, 179, 0, 0.5);
+		background-color: hsl(203, 21%, 75%, 0.3);
 	}
 	100% {
-		background-color: #fff8d6;
-		box-shadow: 0 0 0px rgba(255, 179, 0, 0);
+		background-color: #e0e7eb;
 	}
 }

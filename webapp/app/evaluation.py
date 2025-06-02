@@ -92,9 +92,9 @@ def get_evaluation_text(markdown_ui: ui.markdown, scroll_area: ui.scroll_area):
             message_block = f"**{translated_role}**\n\n{content}"
 
             if i == len(roles[1:]) - 1:
-                ui.markdown(message_block).classes('highlight-last').props('id="last-message"')
+                ui.markdown(message_block).classes('highlight-last p-2').props('id="last-message"')
             else:
-                ui.markdown("---\n\n" + message_block + "\n\n")
+                ui.markdown("---\n\n" + message_block + "\n\n").classes('p-2 w-full')
         
         markdown_ui.set_content(markdown_content.strip())
         ui.run_javascript("""
