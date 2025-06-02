@@ -29,7 +29,7 @@ def render_login_page():
     ui.add_css(get_css_file_path())
 
     with ui.header(elevated=True).style('background-color: var(--primary-color);').classes('items-center justify-between h-20'):
-        ui.label('Pomočnik').classes('text-2xl text-white pl-4')
+        ui.label('AI Pomočnik').classes('text-2xl text-white pl-4')
 
     with ui.element('div').classes('w-full h-[calc(100vh-7.5rem)]').style('background-color: #e0e7eb'):
         with ui.element('div').classes('grid grid-rows-[1fr_8fr_1fr] grid-cols-[1fr_3fr_1fr] h-full w-full'):

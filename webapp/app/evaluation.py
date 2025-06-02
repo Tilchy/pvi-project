@@ -42,7 +42,7 @@ def show_textarea_or_spinner():
     if app.storage.user.get('is_loading', False):
         with ui.row().classes('w-full justify-center items-center mt-8'):
             ui.spinner(size='xl') 
-        ui.button(color='var(--primary-color)', text='Pošlji vprašanje', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-8 lg:mx-16 xl:mx-32 mb-16').props('disable')
+        ui.button(color='var(--primary-color)', text='Pošlji vprašanje').classes('w-full text-white mt-4 mx-8 lg:mx-16 xl:mx-32 mb-16').props('disable')
     else:
         question = ui.textarea(label='Vprašanje', placeholder='Zapišite vprašanje...').props('outlined rows="6"').classes('w-full pt-8 mx-8 lg:mx-16 xl:mx-32 text-lg')
         ui.button(color='var(--primary-color)', text='Pošlji vprašanje', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-8 mb-16 lg:mx-16 xl:mx-32')
@@ -55,7 +55,7 @@ def show_chart_buttons():
         ui.button(f'{idx + 1}', color=get_button_color(chart), on_click=lambda c=chart: set_chart(c)).classes(get_button_classes(chart)).tooltip(f'Graf {idx + 1}')
 
 @ui.refreshable
-def get_evaluation_text(markdown_ui: ui.markdown):
+def get_evaluation_text(markdown_ui: ui.markdown, scroll_area: ui.scroll_area):
     """
     Get the evaluation text for the current user and chart id
     by querying the server and parsing the response.
@@ -85,14 +85,26 @@ def get_evaluation_text(markdown_ui: ui.markdown):
             contents.append(content)
 
         markdown_content = ""
-        for role, content in zip(roles[1:], contents[1:]):
-            markdown_content += "---\n\n"
-            markdown_content += f"**{role.capitalize()}**\n\n{content}\n\n"
-
         markdown_ui.clear()
+        for i, (role, content) in enumerate(zip(roles[1:], contents[1:])):
+            translated_role = "Uporabnik" if role == "user" else "AI Pomočnik"
+
+            message_block = f"**{translated_role}**\n\n{content}"
+
+            if i == len(roles[1:]) - 1:
+                ui.markdown(message_block).classes('highlight-last').props('id="last-message"')
+            else:
+                ui.markdown("---\n\n" + message_block + "\n\n")
+        
         markdown_ui.set_content(markdown_content.strip())
+        ui.run_javascript("""
+            const last = document.getElementById('last-message');
+            if (last) {
+                last.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        """)
     except KeyError:
-        markdown_ui.set_content('**Tukaj bodo prikazani odgovori pomočnika, potem ko jih postavite.**')
+        markdown_ui.set_content('**Tukaj bodo prikazani odgovori AI pomočnika, potem ko jih postavite.**')
 
 async def submit_question(question: str):
     """
@@ -116,7 +128,6 @@ async def submit_question(question: str):
 async def handle_question_submit(question: str):
     app.storage.user['is_loading'] = True
     show_textarea_or_spinner.refresh()
-    get_evaluation_text.refresh()
 
     await submit_question(question)
 
@@ -169,7 +180,7 @@ async def render_evaluation_page():
 
     with ui.header(elevated=True).style('background-color: var(--primary-color);').classes('flex items-center justify-between h-20 px-4'):
         with ui.row().classes('items-center'):
-            ui.label('Pomočnik').classes('text-2xl text-white')
+            ui.label('AI Pomočnik').classes('text-2xl text-white')
         
         with ui.row().classes('gap-4 items-center'):
             ui.button(text='', color='var(--primary-color)', on_click=lambda: logout(), icon='logout').props("flat round").tooltip('Logout')
@@ -185,9 +196,9 @@ async def render_evaluation_page():
 
         with ui.column().classes('w-full h-fit xl:w-3/5'):
             with ui.row(align_items='center').classes('h-full w-full justify-center px-8 lg:px-32 pt-8 text-lg').style('background-color: #e0e7eb'):
-                with ui.scroll_area().classes('min-h-[20rem] xl:min-h-[30rem]'):
+                with ui.scroll_area().classes('min-h-[20rem] xl:min-h-[30rem]') as scroll_area:
                     markdown_ui = ui.markdown()
-                    get_evaluation_text(markdown_ui)
+                    get_evaluation_text(markdown_ui, scroll_area)
             with ui.row(align_items='start').classes('h-full w-full min-h-80').style('background-color: #e0e7eb'):
                 show_textarea_or_spinner()
                     

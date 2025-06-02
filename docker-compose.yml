@@ -1,6 +1,6 @@
 services:
     app:
-        image: tilchy/evaluation-app:1.0.2
+        image: tilchy/evaluation-app:1.2.4
         depends_on:
             - api
         ports:
@@ -10,7 +10,7 @@ services:
             - evaluation-network
 
     api:
-        image: tilchy/evaluation-api:latest
+        image: tilchy/evaluation-api:1.1.0
         ports:
             - 14900:80
         env_file: "api.env"
