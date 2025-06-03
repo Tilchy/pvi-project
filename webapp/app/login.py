@@ -18,9 +18,11 @@ def on_login(email: str):
 
     if response.status_code == 200:
         access_token = dict(response.json()).get('access_token')
-        app.storage.user['access_token'] = access_token
-        app.storage.user['email'] = email
-        app.storage.user['chart_id'] = 'graf-1'
+        app.storage.user.update({
+            'access_token': access_token,
+            'email': email,
+            'chart_id': 'graf-1'
+        })
         ui.navigate.to('/evaluation')
     else:
         ui.notify(response.json())

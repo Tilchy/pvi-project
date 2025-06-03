@@ -1,6 +1,6 @@
 services:
     app:
-        image: tilchy/evaluation-app:1.2.4
+        image: tilchy/evaluation-app:1.2.6
         depends_on:
             - api
         ports:
