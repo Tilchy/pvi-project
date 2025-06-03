@@ -81,7 +81,7 @@ def create_chart(chart: ChartCreate, session: SessionDep, authorization: str = H
     return db_chart
 
 @router.get("/{filename}")
-def get_chart(filename: str, session: SessionDep, authorization: str = Header()):
+async def get_chart(filename: str, session: SessionDep, authorization: str = Header()):
     """
     Retrieve a chart by filename.
 
@@ -104,7 +104,7 @@ def get_chart(filename: str, session: SessionDep, authorization: str = Header())
         raise HTTPException(status_code=401, detail="Invalid token format")
     token = authorization.split(" ")[1]
 
-    verify_user(token, session)
+    await verify_user(token, session)
 
     db_chart = session.get(Chart, filename)
     if not db_chart:
@@ -113,7 +113,7 @@ def get_chart(filename: str, session: SessionDep, authorization: str = Header())
     return db_chart
 
 @router.get("/", response_model=list[ChartBase])
-def list_charts(session: SessionDep, authorization: str = Header()):
+async def list_charts(session: SessionDep, authorization: str = Header()):
     """
     List all charts.
 
@@ -133,7 +133,7 @@ def list_charts(session: SessionDep, authorization: str = Header()):
         raise HTTPException(status_code=401, detail="Invalid token format")
     token = authorization.split(" ")[1]
 
-    verify_user(token, session)
+    await verify_user(token, session)
 
     statement = select(Chart)
     charts = session.exec(statement).all()
@@ -141,7 +141,7 @@ def list_charts(session: SessionDep, authorization: str = Header()):
     return charts
 
 @router.put("/{filename}", response_model=ChartBase)
-def update_chart(filename: str, chart: ChartUpdate, session: SessionDep, authorization: str = Header()):
+async def update_chart(filename: str, chart: ChartUpdate, session: SessionDep, authorization: str = Header()):
     """
     Update a chart.
 
@@ -182,7 +182,7 @@ def update_chart(filename: str, chart: ChartUpdate, session: SessionDep, authori
     return db_chart
 
 @router.delete("/{filename}", status_code=204)
-def delete_chart(filename: str, session: SessionDep, authorization: str = Header()):
+async def delete_chart(filename: str, session: SessionDep, authorization: str = Header()):
     """
     Delete a chart by filename.
 

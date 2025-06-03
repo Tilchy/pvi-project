@@ -40,7 +40,7 @@ def require_authentication(required_type=None):
     return user_data
 
 
-def get_image_url():
+async def get_image_url():
     """Get the image URL and description for the current chart ID.
 
     Query the server with the current chart ID and access token to get the image URL and description.
@@ -69,7 +69,7 @@ def get_button_color(chart_id):
         return 'var(--primary-color)'
     return 'var(--disabled-color)'
 
-def get_charts():
+async def get_charts():
     """Get the list of charts from the server.
 
     Query the server to get the list of available charts.

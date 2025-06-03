@@ -75,7 +75,7 @@ async def login_user(email: Annotated[EmailStr, Form()], session: SessionDep):
     if db_user.disabled:
         raise HTTPException(status_code=401, detail="User is disabled")
 
-    access_token = issue_access_token(email)
+    access_token = await issue_access_token(email)
 
     return {"access_token": access_token}
 
@@ -119,7 +119,7 @@ async def verify_access_token(request: TokenRequest, session: SessionDep):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid access token")
 
-def issue_access_token(email: str):
+async def issue_access_token(email: str):
     """
     Issue an access token for a user.
 
@@ -226,7 +226,7 @@ def verify_if_admin(token: str, session: SessionDep):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid access token")
     
-def verify_user(token: str, session: SessionDep):
+async def verify_user(token: str, session: SessionDep):
     """
     Verify if the user associated with the access token is a user.
 

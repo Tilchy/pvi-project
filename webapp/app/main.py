@@ -9,6 +9,7 @@ from utils import require_authentication, get_image_url, get_charts, get_button_
 from login import render_login_page
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 STORAGE_KEY = os.getenv('STORAGE_KEY')
@@ -32,21 +33,20 @@ async def evaluation_page():
     """
 
     @ui.refreshable
-    def show_chart():
-        image_url, image_description = get_image_url()
-        print()
+    async def show_chart():
+        image_url, image_description = await get_image_url()
         with ui.card().classes('w-full h-fit max-h-[40rem]'):
             ui.image(image_url).props('fit="contain"')
             with ui.card_section():
                 ui.label(image_description)
 
     @ui.refreshable
-    def show_image():
-        image_url, image_description = get_image_url()
+    async def show_image():
+        image_url, image_description = await get_image_url()
         ui.image(image_url).classes('w-full h-full').props('fit="scale-down"')
 
     @ui.refreshable
-    def show_textarea_or_spinner():
+    async def show_textarea_or_spinner():
         # Show spinner while loading
         if app.storage.user.get('is_loading', False):
             with ui.row().classes('w-full justify-center items-center mt-8'):
@@ -57,14 +57,14 @@ async def evaluation_page():
             ui.button(color='var(--primary-color)', text='Pošlji vprašanje', on_click=lambda: handle_question_submit(question.value)).classes('w-full text-white mt-4 mx-8 mb-16 lg:mx-16 xl:mx-32')
 
     @ui.refreshable
-    def show_chart_buttons():
-        charts = get_charts() 
+    async def show_chart_buttons():
+        charts = await get_charts() 
         
         for idx, chart in enumerate(charts):
             ui.button(f'{idx + 1}', color=get_button_color(chart), on_click=lambda c=chart: set_chart(c)).classes(get_button_classes(chart)).tooltip(f'Graf {idx + 1}')
 
     @ui.refreshable
-    def get_evaluation_text(markdown_ui: ui.markdown, scroll_area: ui.scroll_area):
+    async def get_evaluation_text(markdown_ui: ui.markdown, scroll_area: ui.scroll_area):
         """
         Get the evaluation text for the current user and chart id
         by querying the server and parsing the response.
@@ -115,7 +115,7 @@ async def evaluation_page():
         except KeyError:
             markdown_ui.set_content('**Tukaj bodo prikazani odgovori AI pomočnika, potem ko jih postavite.**')
 
-    def set_chart(chart_id):
+    async def set_chart(chart_id):
         app.storage.user.update({'chart_id': chart_id})
         show_chart.refresh()
         show_image.refresh()
@@ -158,7 +158,7 @@ async def evaluation_page():
         
         with ui.dialog() as dialog, ui.card(align_items='end').classes('w-full h-full').style('max-width: none'):
             ui.button('X', on_click=dialog.close)
-            show_image()
+            await show_image()
 
         with ui.header(elevated=True).style('background-color: var(--primary-color);').classes('flex items-center justify-between h-20 px-4'):
             with ui.row().classes('items-center'):
@@ -171,18 +171,18 @@ async def evaluation_page():
             with ui.column().classes('w-full h-full xl:w-2/5'):   
                 with ui.row(align_items='center').classes('h-fit w-full justify-center').style('background-color: #e0e7eb'):
                     with ui.element('div').on('click', dialog.open).classes('w-full h-full cursor-pointer p-4').tooltip('Kliknite za povečavo slike'):
-                            show_chart()
+                            await show_chart()
 
                 with ui.row(align_items='start').classes('gap-4 w-full h-fit justify-center pt-8 px-4').style('background-color: #e0e7eb'):
-                    show_chart_buttons()
+                    await show_chart_buttons()
 
             with ui.column().classes('w-full h-fit xl:w-3/5'):
                 with ui.row(align_items='center').classes('h-full w-full justify-center px-8 lg:px-32 pt-8 text-lg').style('background-color: #e0e7eb'):
                     with ui.scroll_area().classes('min-h-[20rem] xl:min-h-[30rem]') as scroll_area:
                         markdown_ui = ui.markdown()
-                        get_evaluation_text(markdown_ui, scroll_area)
+                        await get_evaluation_text(markdown_ui, scroll_area)
                 with ui.row(align_items='start').classes('h-full w-full min-h-80').style('background-color: #e0e7eb'):
-                    show_textarea_or_spinner()
+                    await show_textarea_or_spinner()
                         
         with ui.footer(elevated=False).style('background-color: #29363d;').classes('items-center h-10'):
             ui.label('Tilen Tratnjek - Univerza v Mariboru 2025').classes('pl-4 text-sm text-gray-200')

@@ -1,14 +1,14 @@
-from datetime import datetime, timezone
+import aiohttp
+import asyncio
+import jwt
 import json
 import os
+from datetime import datetime, timezone
 from typing import Annotated
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Header
-import jwt
-import requests
 from sqlmodel import Field, SQLModel, Session, select
 from pydantic import BaseModel
-
 from app.dependencies import get_session
 from app.routers.charts import Chart
 from app.routers.users import verify_user
@@ -41,7 +41,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 # Check if evaluation exists for current user and chart, evaluations need to be sorted by timestamp (latest first)
 # If evaluation exists, return it, else create a new one
 @router.get("/{email}/{chart}")
-def get_evaluation(email: str, chart: str, session: SessionDep, authorization: str = Header()):
+async def get_evaluation(email: str, chart: str, session: SessionDep, authorization: str = Header()):
     """
     Get an evaluation for a user and chart.
 
@@ -66,7 +66,7 @@ def get_evaluation(email: str, chart: str, session: SessionDep, authorization: s
     if not email or not chart:
         raise HTTPException(status_code=400, detail="User and chart must be provided")
     
-    verify_user(token, session)
+    await verify_user(token, session)
 
     payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
     if payload["email"] != email:
@@ -107,7 +107,7 @@ async def ask_question(email: str, chart: str, question: Question, session: Sess
     HTTPException: 404 if the chart is not found.
     HTTPException: 500 if there is an error decoding existing chat history.
     """
-
+    
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid token format")
     token = authorization.split(" ")[1]
@@ -118,7 +118,7 @@ async def ask_question(email: str, chart: str, question: Question, session: Sess
     if not question.question:
         raise HTTPException(status_code=400, detail="Question must be provided")
 
-    verify_user(token, session)
+    await verify_user(token, session)
 
     payload = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
     if payload["email"] != email:
@@ -139,30 +139,29 @@ async def ask_question(email: str, chart: str, question: Question, session: Sess
         }
 
         first_question = {
-			"role": "user",
-			"content": [
-				{
-					"type": "text",
-					"text": f"{question.question}"
-				},
-				{
-					"type": "image_url",
-					"image_url": {
-						"url": f"{db_chart.url}"
-					}
-				}
-			]
-		}
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"{question.question}"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"{db_chart.url}"
+                    }
+                }
+            ]
+        }
 
-        chat = send_request_to_openai([instruction, first_question])
-
-        chat = json.dumps(chat).encode('utf-8')
+        chat = await send_request_to_openai([instruction, first_question])
+        chat_json = json.dumps(chat).encode('utf-8')
 
         db_evaluation = Evaluation(
             email=email,
             chart=chart,
             timestamp=datetime.now(timezone.utc),
-            chat_history=chat
+            chat_history=chat_json
         )
 
         session.add(db_evaluation)
@@ -172,7 +171,7 @@ async def ask_question(email: str, chart: str, question: Question, session: Sess
     else:
         try:
             chat_history: list = json.loads(db_evaluation.chat_history.decode('utf-8'))
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             raise HTTPException(status_code=500, detail="Failed to decode existing chat history")
 
         new_question = {
@@ -186,14 +185,12 @@ async def ask_question(email: str, chart: str, question: Question, session: Sess
         }
         chat_history.append(new_question)
 
-        chat_history = send_request_to_openai(chat_history)
-
-        print(chat_history)
+        chat_history = await send_request_to_openai(chat_history)
 
         updated_chat_history = json.dumps(chat_history).encode('utf-8')
 
         db_evaluation.chat_history = updated_chat_history
-        db_evaluation.timestamp = datetime.now(timezone.utc)  # Update the timestamp
+        db_evaluation.timestamp = datetime.now(timezone.utc)
         session.add(db_evaluation)
         session.commit()
         session.refresh(db_evaluation)
@@ -201,7 +198,10 @@ async def ask_question(email: str, chart: str, question: Question, session: Sess
     return db_evaluation
 
 
-def send_request_to_openai(chat: list):
+async def send_request_to_openai(chat: list):
+    """
+    Non-blocking HTTP request to OpenAI API using aiohttp
+    """
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
@@ -214,12 +214,30 @@ def send_request_to_openai(chat: list):
         "max_completion_tokens": 300
     }
 
-    response = requests.post(url, headers=headers, json=data)
-    response_dict = response.json()
-    first_message = response_dict["choices"][0]["message"]
-    role = first_message["role"]
-    content = first_message["content"]
+    timeout = aiohttp.ClientTimeout(total=30)  # 30 second timeout
+    
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, headers=headers, json=data) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise HTTPException(
+                        status_code=502, 
+                        detail=f"OpenAI API error: {response.status} - {error_text}"
+                    )
+                
+                response_dict = await response.json()
+                
+        first_message = response_dict["choices"][0]["message"]
+        role = first_message["role"]
+        content = first_message["content"]
 
-    chat.append({"role": role, "content": content})
-
-    return chat
+        chat.append({"role": role, "content": content})
+        return chat
+        
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="OpenAI API request timed out")
+    except aiohttp.ClientError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to OpenAI API: {str(e)}")
+    except KeyError as e:
+        raise HTTPException(status_code=502, detail=f"Unexpected OpenAI API response format: {str(e)}")
